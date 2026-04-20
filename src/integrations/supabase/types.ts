@@ -14,7 +14,110 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      analyses: {
+        Row: {
+          ats_score: number
+          created_at: string
+          fake_risk: number
+          feedback: Json | null
+          file_name: string
+          gender_preference: string
+          id: string
+          job_profile_id: string | null
+          job_suggestions: Json | null
+          match_score: number
+          parsed: Json
+          raw_text: string | null
+          user_id: string
+        }
+        Insert: {
+          ats_score?: number
+          created_at?: string
+          fake_risk?: number
+          feedback?: Json | null
+          file_name: string
+          gender_preference?: string
+          id?: string
+          job_profile_id?: string | null
+          job_suggestions?: Json | null
+          match_score?: number
+          parsed?: Json
+          raw_text?: string | null
+          user_id: string
+        }
+        Update: {
+          ats_score?: number
+          created_at?: string
+          fake_risk?: number
+          feedback?: Json | null
+          file_name?: string
+          gender_preference?: string
+          id?: string
+          job_profile_id?: string | null
+          job_suggestions?: Json | null
+          match_score?: number
+          parsed?: Json
+          raw_text?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analyses_job_profile_id_fkey"
+            columns: ["job_profile_id"]
+            isOneToOne: false
+            referencedRelation: "job_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_profiles: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          level: string
+          required_skills: string[]
+          title: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          id?: string
+          level?: string
+          required_skills?: string[]
+          title: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          level?: string
+          required_skills?: string[]
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          id: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
