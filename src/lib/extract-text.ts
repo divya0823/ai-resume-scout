@@ -1,6 +1,6 @@
 // PDF/TXT extraction in the browser using pdfjs
 import * as pdfjs from "pdfjs-dist";
-// @ts-expect-error - vite ?url import
+// @ts-ignore - vite ?url import
 import workerSrc from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
