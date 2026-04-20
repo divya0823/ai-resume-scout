@@ -1,0 +1,10 @@
+project_id = "reerdgmjvlpanyjynmny"
+
+[functions.analyze-resume]
+verify_jwt = false
+
+[functions.recruiter-feedback]
+verify_jwt = false
+
+[functions.suggest-jobs]
+verify_jwt = false
