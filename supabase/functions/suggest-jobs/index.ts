@@ -14,12 +14,28 @@ Deno.serve(async (req) => {
       type: "function",
       function: {
         name: "submit_jobs",
-        description: "Submit job suggestions",
+        description: "Submit best-fit and alternative job suggestions",
         parameters: {
           type: "object",
           properties: {
-            jobs: {
+            best_fit: {
               type: "array",
+              description: "Top 3 best-fit roles directly aligned with the candidate's strongest skills",
+              items: {
+                type: "object",
+                properties: {
+                  title: { type: "string" },
+                  level: { type: "string", enum: ["Intern", "Junior", "Mid", "Senior", "Lead"] },
+                  match_percent: { type: "number" },
+                  matching_skills: { type: "array", items: { type: "string" } },
+                  reason: { type: "string" }
+                },
+                required: ["title", "level", "match_percent", "matching_skills", "reason"]
+              }
+            },
+            alternatives: {
+              type: "array",
+              description: "2-3 adjacent roles the candidate could pivot to",
               items: {
                 type: "object",
                 properties: {
@@ -33,7 +49,7 @@ Deno.serve(async (req) => {
               }
             }
           },
-          required: ["jobs"]
+          required: ["best_fit", "alternatives"]
         }
       }
     }];
@@ -44,8 +60,8 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
-          { role: "system", content: "You are a career advisor. Suggest 5 realistic jobs that match the candidate's skills and experience." },
-          { role: "user", content: `Resume analysis:\n${JSON.stringify(analysis)}\n\nSuggest 5 jobs with match%, level, matching skills, and a clear reason.` }
+          { role: "system", content: "You are a career advisor. Provide 3 best-fit roles (highest match) and 2-3 alternative/adjacent roles for career pivots." },
+          { role: "user", content: `Resume analysis:\n${JSON.stringify(analysis)}\n\nReturn best_fit and alternatives.` }
         ],
         tools,
         tool_choice: { type: "function", function: { name: "submit_jobs" } }
@@ -59,7 +75,10 @@ Deno.serve(async (req) => {
     }
     const data = await resp.json();
     const args = data.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
-    return new Response(JSON.stringify(JSON.parse(args)), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const parsed = JSON.parse(args);
+    // Backward compat: also expose flat jobs array
+    const jobs = [...(parsed.best_fit || []), ...(parsed.alternatives || [])];
+    return new Response(JSON.stringify({ ...parsed, jobs }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error(e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });

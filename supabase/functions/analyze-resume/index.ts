@@ -14,27 +14,31 @@ Deno.serve(async (req) => {
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY missing");
 
     const trimmed = (text || "").slice(0, 18000);
-    const systemPrompt = `You are an expert ATS (Applicant Tracking System) and resume analyzer.
-Extract structured information from the resume and produce a rigorous ATS score.
-Be honest. If a section is missing, return empty arrays.
-Detect potentially fake/inflated claims (impossible timelines, vague buzzword spam, no specifics).`;
+    const wordCount = trimmed.trim().split(/\s+/).filter(Boolean).length;
+    const lowContent = wordCount < 150;
 
-    const userPrompt = `RESUME TEXT:
+    const systemPrompt = `You are an expert ATS (Applicant Tracking System) and resume analyzer.
+Extract ALL inferable information from the resume — even short ones. Be FLEXIBLE: if a section is unlabeled, infer it from context (e.g., a list of technologies = skills, a project description = projects).
+NEVER refuse to analyze a short resume. If content is sparse, still produce best-effort scores and mark fields as empty arrays only when truly absent.
+Produce honest, calibrated scores. Detect inflated/fake claims (impossible timelines, vague buzzword spam, no specifics).
+For freshers (no work experience), weight scoring toward Skills, Projects, Education, and Certifications.`;
+
+    const userPrompt = `RESUME TEXT (${wordCount} words${lowContent ? " — LOW CONTENT, be lenient but honest" : ""}):
 """
 ${trimmed}
 """
 
 ${jobDescription ? `TARGET JOB DESCRIPTION:\n"""${jobDescription}"""\n` : ""}
 ${requiredSkills?.length ? `REQUIRED SKILLS: ${requiredSkills.join(", ")}\n` : ""}
-${genderPreference && genderPreference !== "none" ? `RECRUITER GENDER PREFERENCE (only used as a small scoring nudge, do not discriminate): ${genderPreference}\n` : ""}
+${genderPreference && genderPreference !== "none" ? `RECRUITER GENDER PREFERENCE (small nudge only, do not discriminate): ${genderPreference}\n` : ""}
 
-Analyze and return structured data via the tool.`;
+Analyze flexibly and submit structured data via the tool. Always return all required fields.`;
 
     const tools = [{
       type: "function",
       function: {
         name: "submit_resume_analysis",
-        description: "Submit structured resume analysis",
+        description: "Submit structured resume analysis with detailed sub-scores and categorized improvement suggestions",
         parameters: {
           type: "object",
           properties: {
@@ -42,18 +46,16 @@ Analyze and return structured data via the tool.`;
             email: { type: "string" },
             phone: { type: "string" },
             summary: { type: "string", description: "1-2 sentence professional summary" },
-            detected_gender: { type: "string", enum: ["male", "female", "unknown"], description: "Inferred from name/pronouns; unknown if unclear" },
+            detected_gender: { type: "string", enum: ["male", "female", "unknown"] },
             skills: { type: "array", items: { type: "string" } },
-            missing_skills: { type: "array", items: { type: "string" }, description: "Important skills missing vs job requirements" },
+            missing_skills: { type: "array", items: { type: "string" } },
             experience: {
               type: "array",
               items: {
                 type: "object",
                 properties: {
-                  role: { type: "string" },
-                  company: { type: "string" },
-                  duration: { type: "string" },
-                  highlights: { type: "array", items: { type: "string" } }
+                  role: { type: "string" }, company: { type: "string" },
+                  duration: { type: "string" }, highlights: { type: "array", items: { type: "string" } }
                 },
                 required: ["role", "company", "duration"]
               }
@@ -69,22 +71,42 @@ Analyze and return structured data via the tool.`;
             },
             projects: { type: "array", items: { type: "string" } },
             certifications: { type: "array", items: { type: "string" } },
-            ats_score: { type: "number", description: "0-100 overall ATS quality (formatting, keywords, completeness)" },
-            match_score: { type: "number", description: "0-100 match vs job description (0 if no JD)" },
+            // Sub-scores 0-100
+            skill_score: { type: "number", description: "0-100 quality & breadth of skills" },
+            experience_score: { type: "number", description: "0-100 work experience strength (for freshers, base on internships/projects)" },
+            education_score: { type: "number", description: "0-100 education quality" },
+            project_score: { type: "number", description: "0-100 project portfolio strength" },
+            ats_score: { type: "number", description: "0-100 ATS friendliness (formatting, keywords, completeness)" },
+            match_score: { type: "number", description: "0-100 job match (0 if no JD)" },
+            overall_score: { type: "number", description: "0-100 weighted overall (skill 30%, exp 25%, edu 15%, proj 20%, ats 10% — for freshers shift exp weight to projects/skills)" },
             fake_risk: { type: "number", description: "0-100 likelihood of fabricated content" },
             ats_breakdown: {
               type: "object",
               properties: {
-                skills: { type: "number" },
-                experience: { type: "number" },
-                education: { type: "number" },
-                projects: { type: "number" },
-                formatting: { type: "number" }
+                skills: { type: "number" }, experience: { type: "number" },
+                education: { type: "number" }, projects: { type: "number" }, formatting: { type: "number" }
               },
               required: ["skills", "experience", "education", "projects", "formatting"]
+            },
+            // Categorized improvement suggestions
+            improvements: {
+              type: "object",
+              description: "Specific, actionable improvement suggestions grouped by category",
+              properties: {
+                skills: { type: "array", items: { type: "string" }, description: "e.g. 'Add Docker, Kubernetes', 'Mention Git workflow'" },
+                experience: { type: "array", items: { type: "string" }, description: "e.g. 'Add quantified achievements (e.g. improved X by Y%)'" },
+                formatting: { type: "array", items: { type: "string" }, description: "e.g. 'Use bullet points', 'Add a clear summary section'" },
+                links: { type: "array", items: { type: "string" }, description: "e.g. 'Add GitHub link', 'Include LinkedIn URL'" }
+              },
+              required: ["skills", "experience", "formatting", "links"]
             }
           },
-          required: ["candidate_name", "skills", "experience", "education", "projects", "certifications", "ats_score", "match_score", "fake_risk", "ats_breakdown", "is_fresher", "detected_gender", "missing_skills"]
+          required: [
+            "candidate_name", "skills", "experience", "education", "projects", "certifications",
+            "ats_score", "match_score", "fake_risk", "ats_breakdown",
+            "skill_score", "experience_score", "education_score", "project_score", "overall_score",
+            "is_fresher", "detected_gender", "missing_skills", "improvements"
+          ]
         }
       }
     }];
@@ -116,9 +138,14 @@ Analyze and return structured data via the tool.`;
     if (!toolCall) throw new Error("No structured response");
     const parsed = JSON.parse(toolCall.function.arguments);
 
-    // Apply gender preference nudge (small, transparent)
+    // Attach low content metadata
+    parsed.low_content = lowContent;
+    parsed.word_count = wordCount;
+
+    // Gender preference small nudge
     if (genderPreference && genderPreference !== "none" && parsed.detected_gender === genderPreference) {
       parsed.match_score = Math.min(100, (parsed.match_score || 0) + 5);
+      parsed.overall_score = Math.min(100, (parsed.overall_score || 0) + 2);
     }
 
     return new Response(JSON.stringify({ analysis: parsed }), {
