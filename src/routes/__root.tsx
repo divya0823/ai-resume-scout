@@ -1,21 +1,17 @@
 import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
-
 import appCss from "../styles.css?url";
+import { Header } from "@/components/Header";
+import { Toaster } from "sonner";
 
 function NotFoundComponent() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          The page you're looking for doesn't exist or has been moved.
-        </p>
+    <div className="flex min-h-screen items-center justify-center px-4 bg-gradient-hero">
+      <div className="max-w-md text-center glass rounded-2xl p-10">
+        <h1 className="text-7xl font-bold text-gradient">404</h1>
+        <h2 className="mt-4 text-xl font-semibold">Page not found</h2>
+        <p className="mt-2 text-sm text-muted-foreground">This page doesn't exist or has been moved.</p>
         <div className="mt-6">
-          <Link
-            to="/"
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-          >
+          <Link to="/" className="inline-flex items-center justify-center rounded-md bg-gradient-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90">
             Go home
           </Link>
         </div>
@@ -29,21 +25,10 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
+      { title: "ResumeIQ — AI Resume Screening & ATS Analyzer" },
+      { name: "description", content: "Upload a resume and get instant AI-powered ATS scoring, skill gaps, recruiter feedback, and matching job suggestions." },
     ],
-    links: [
-      {
-        rel: "stylesheet",
-        href: appCss,
-      },
-    ],
+    links: [{ rel: "stylesheet", href: appCss }],
   }),
   shellComponent: RootShell,
   component: RootComponent,
@@ -51,10 +36,13 @@ export const Route = createRootRoute({
 });
 
 function RootShell({ children }: { children: React.ReactNode }) {
+  // Prevent dark-mode flash
+  const themeScript = `try { var t = localStorage.getItem('theme'); if (t === 'dark') document.documentElement.classList.add('dark'); } catch(e) {}`;
   return (
     <html lang="en">
       <head>
         <HeadContent />
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body>
         {children}
@@ -65,5 +53,13 @@ function RootShell({ children }: { children: React.ReactNode }) {
 }
 
 function RootComponent() {
-  return <Outlet />;
+  return (
+    <div className="min-h-screen flex flex-col">
+      <Header />
+      <main className="flex-1">
+        <Outlet />
+      </main>
+      <Toaster position="top-right" richColors />
+    </div>
+  );
 }
