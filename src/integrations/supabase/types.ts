@@ -18,6 +18,8 @@ export type Database = {
         Row: {
           ats_score: number
           created_at: string
+          education_score: number
+          experience_score: number
           fake_risk: number
           feedback: Json | null
           file_name: string
@@ -25,14 +27,21 @@ export type Database = {
           id: string
           job_profile_id: string | null
           job_suggestions: Json | null
+          low_content: boolean
           match_score: number
+          overall_score: number
           parsed: Json
+          project_score: number
           raw_text: string | null
+          skill_score: number
           user_id: string
+          word_count: number
         }
         Insert: {
           ats_score?: number
           created_at?: string
+          education_score?: number
+          experience_score?: number
           fake_risk?: number
           feedback?: Json | null
           file_name: string
@@ -40,14 +49,21 @@ export type Database = {
           id?: string
           job_profile_id?: string | null
           job_suggestions?: Json | null
+          low_content?: boolean
           match_score?: number
+          overall_score?: number
           parsed?: Json
+          project_score?: number
           raw_text?: string | null
+          skill_score?: number
           user_id: string
+          word_count?: number
         }
         Update: {
           ats_score?: number
           created_at?: string
+          education_score?: number
+          experience_score?: number
           fake_risk?: number
           feedback?: Json | null
           file_name?: string
@@ -55,10 +71,15 @@ export type Database = {
           id?: string
           job_profile_id?: string | null
           job_suggestions?: Json | null
+          low_content?: boolean
           match_score?: number
+          overall_score?: number
           parsed?: Json
+          project_score?: number
           raw_text?: string | null
+          skill_score?: number
           user_id?: string
+          word_count?: number
         }
         Relationships: [
           {
@@ -123,7 +144,31 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_global_stats: {
+        Args: never
+        Returns: {
+          avg_ats: number
+          avg_overall: number
+          top_candidate: string
+          top_score: number
+          total_resumes: number
+        }[]
+      }
+      get_leaderboard: {
+        Args: { _limit?: number }
+        Returns: {
+          ats_score: number
+          candidate_name: string
+          created_at: string
+          education_score: number
+          experience_score: number
+          id: string
+          match_score: number
+          overall_score: number
+          project_score: number
+          skill_score: number
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
