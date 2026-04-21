@@ -20,10 +20,6 @@ function Index() {
         <div className="absolute -top-24 -right-24 h-96 w-96 rounded-full bg-primary/20 blur-3xl animate-float" />
         <div className="absolute -bottom-24 -left-24 h-96 w-96 rounded-full bg-primary-glow/20 blur-3xl animate-float" />
         <div className="container relative mx-auto px-4 py-20 md:py-32 text-center">
-          <div className="inline-flex items-center gap-2 glass rounded-full px-4 py-1.5 text-xs font-medium mb-6">
-            <Sparkles className="h-3.5 w-3.5 text-primary" />
-            Powered by Lovable AI
-          </div>
           <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight">
             Smarter resume screening<br />
             <span className="text-gradient">in seconds.</span>
