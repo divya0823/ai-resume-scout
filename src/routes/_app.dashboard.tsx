@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import {
   Upload, Loader2, Sparkles, Briefcase, GraduationCap, Award,
   Code, AlertTriangle, CheckCircle2, XCircle, TrendingUp, Download, Eye,
-  Wrench, FileType, Link2, Star
+  Wrench, FileType, Link2, Star, MapPin
 } from "lucide-react";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import jsPDF from "jspdf";
@@ -24,7 +24,7 @@ export const Route = createFileRoute("/_app/dashboard")({
   component: Dashboard,
 });
 
-interface JobProfile { id: string; title: string; description: string; required_skills: string[]; level: string; }
+interface JobProfile { id: string; title: string; description: string; required_skills: string[]; level: string; preferred_location?: string | null; }
 
 const MIN_WORDS = 50;
 
@@ -84,7 +84,7 @@ function Dashboard() {
       const job = jobs.find((j) => j.id === selectedJob);
       toast.info("Running AI analysis…");
       const { data, error } = await supabase.functions.invoke("analyze-resume", {
-        body: { text, jobDescription: job?.description, requiredSkills: job?.required_skills, genderPreference: gender }
+        body: { text, jobDescription: job?.description, requiredSkills: job?.required_skills, genderPreference: gender, preferredLocation: job?.preferred_location || undefined }
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -96,6 +96,8 @@ function Dashboard() {
         job_profile_id: job?.id ?? null,
         file_name: file.name,
         gender_preference: gender,
+        city: a.city || null,
+        state: a.state || null,
         ats_score: Math.round(a.ats_score || 0),
         match_score: Math.round(a.match_score || 0),
         fake_risk: Math.round(a.fake_risk || 0),
@@ -332,6 +334,13 @@ function Dashboard() {
                 <p className="text-sm text-muted-foreground break-all">{analysis.email} {analysis.phone && `· ${analysis.phone}`}</p>
                 {analysis.summary && <p className="text-sm mt-2 max-w-2xl">{analysis.summary}</p>}
                 <div className="flex gap-2 mt-3 flex-wrap">
+                  <Badge variant="outline" className={analysis.city ? "border-primary/40 text-primary" : "border-muted-foreground/30 text-muted-foreground"}>
+                    <MapPin className="h-3 w-3 mr-1" />
+                    {analysis.city ? `${analysis.city}${analysis.state ? `, ${analysis.state}` : ""}` : "City not detected"}
+                  </Badge>
+                  {analysis.location_match === true && (
+                    <Badge className="bg-success text-success-foreground">📍 Location match</Badge>
+                  )}
                   {isFresher && <Badge variant="secondary" className="bg-primary/15 text-primary border-primary/30">🎓 Fresher Candidate</Badge>}
                   {gender !== "none" && analysis.detected_gender !== "unknown" && (
                     <Badge variant={analysis.detected_gender === gender ? "default" : "outline"}>
