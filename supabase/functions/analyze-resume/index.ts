@@ -9,7 +9,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { text, jobDescription, requiredSkills, genderPreference } = await req.json();
+    const { text, jobDescription, requiredSkills, genderPreference, preferredLocation } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY missing");
 
@@ -21,7 +21,8 @@ Deno.serve(async (req) => {
 Extract ALL inferable information from the resume — even short ones. Be FLEXIBLE: if a section is unlabeled, infer it from context (e.g., a list of technologies = skills, a project description = projects).
 NEVER refuse to analyze a short resume. If content is sparse, still produce best-effort scores and mark fields as empty arrays only when truly absent.
 Produce honest, calibrated scores. Detect inflated/fake claims (impossible timelines, vague buzzword spam, no specifics).
-For freshers (no work experience), weight scoring toward Skills, Projects, Education, and Certifications.`;
+For freshers (no work experience), weight scoring toward Skills, Projects, Education, and Certifications.
+LOCATION: Extract the candidate's CURRENT Indian city and state from the resume (address, contact details, or any mentioned city). Focus ONLY on India. Normalize aliases: "Bombay"→"Mumbai", "Bangalore"→"Bengaluru", "Calcutta"→"Kolkata", "Madras"→"Chennai", "Gurgaon"→"Gurugram", "Delhi NCR"/"NCR"/"New Delhi"→"Delhi", "Trivandrum"→"Thiruvananthapuram", "Pondicherry"→"Puducherry", "Cochin"→"Kochi", "Mysore"→"Mysuru". Return only city name (no "India" suffix). If no Indian city is found, return empty strings for city and state.`;
 
     const userPrompt = `RESUME TEXT (${wordCount} words${lowContent ? " — LOW CONTENT, be lenient but honest" : ""}):
 """
@@ -31,6 +32,7 @@ ${trimmed}
 ${jobDescription ? `TARGET JOB DESCRIPTION:\n"""${jobDescription}"""\n` : ""}
 ${requiredSkills?.length ? `REQUIRED SKILLS: ${requiredSkills.join(", ")}\n` : ""}
 ${genderPreference && genderPreference !== "none" ? `RECRUITER GENDER PREFERENCE (small nudge only, do not discriminate): ${genderPreference}\n` : ""}
+${preferredLocation ? `PREFERRED LOCATION (city in India, used for match scoring nudge): ${preferredLocation}\n` : ""}
 
 Analyze flexibly and submit structured data via the tool. Always return all required fields.`;
 
@@ -45,6 +47,8 @@ Analyze flexibly and submit structured data via the tool. Always return all requ
             candidate_name: { type: "string" },
             email: { type: "string" },
             phone: { type: "string" },
+            city: { type: "string", description: "Normalized Indian city (e.g. Mumbai, Pune, Bengaluru). Empty string if not detected." },
+            state: { type: "string", description: "Indian state name (e.g. Maharashtra, Karnataka). Empty string if unknown." },
             summary: { type: "string", description: "1-2 sentence professional summary" },
             detected_gender: { type: "string", enum: ["male", "female", "unknown"] },
             skills: { type: "array", items: { type: "string" } },
@@ -105,7 +109,7 @@ Analyze flexibly and submit structured data via the tool. Always return all requ
             "candidate_name", "skills", "experience", "education", "projects", "certifications",
             "ats_score", "match_score", "fake_risk", "ats_breakdown",
             "skill_score", "experience_score", "education_score", "project_score", "overall_score",
-            "is_fresher", "detected_gender", "missing_skills", "improvements"
+            "is_fresher", "detected_gender", "missing_skills", "improvements", "city", "state"
           ]
         }
       }
@@ -146,6 +150,18 @@ Analyze flexibly and submit structured data via the tool. Always return all requ
     if (genderPreference && genderPreference !== "none" && parsed.detected_gender === genderPreference) {
       parsed.match_score = Math.min(100, (parsed.match_score || 0) + 5);
       parsed.overall_score = Math.min(100, (parsed.overall_score || 0) + 2);
+    }
+
+    // Location match nudge (preferred Indian city)
+    if (preferredLocation && parsed.city) {
+      const norm = (s: string) => s.toLowerCase().trim();
+      if (norm(parsed.city) === norm(preferredLocation)) {
+        parsed.match_score = Math.min(100, (parsed.match_score || 0) + 5);
+        parsed.overall_score = Math.min(100, (parsed.overall_score || 0) + 2);
+        parsed.location_match = true;
+      } else {
+        parsed.location_match = false;
+      }
     }
 
     return new Response(JSON.stringify({ analysis: parsed }), {
