@@ -2,6 +2,7 @@
 import * as pdfjs from "pdfjs-dist";
 // @ts-ignore - vite ?url import
 import workerSrc from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import mammoth from "mammoth";
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
 
@@ -20,5 +21,13 @@ export async function extractText(file: File): Promise<string> {
     }
     return text;
   }
-  throw new Error("Unsupported file type. Use PDF or TXT.");
+  if (
+    file.name.toLowerCase().endsWith(".docx") ||
+    file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+  ) {
+    const buf = await file.arrayBuffer();
+    const result = await mammoth.extractRawText({ arrayBuffer: buf });
+    return result.value || "";
+  }
+  throw new Error("Unsupported file type. Use PDF, DOCX, or TXT.");
 }

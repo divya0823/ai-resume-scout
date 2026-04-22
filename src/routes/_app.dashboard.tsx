@@ -54,8 +54,15 @@ function Dashboard() {
 
   const validateAndSet = (f: File | null) => {
     if (!f) return;
-    const ok = f.type === "application/pdf" || f.type === "text/plain" || f.name.endsWith(".pdf") || f.name.endsWith(".txt");
-    if (!ok) { toast.error("Only PDF and TXT files are supported."); return; }
+    const lower = f.name.toLowerCase();
+    const ok =
+      f.type === "application/pdf" ||
+      f.type === "text/plain" ||
+      f.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+      lower.endsWith(".pdf") ||
+      lower.endsWith(".txt") ||
+      lower.endsWith(".docx");
+    if (!ok) { toast.error("Only PDF, DOCX and TXT files are supported."); return; }
     if (f.size > 5 * 1024 * 1024) { toast.error("Max file size is 5 MB."); return; }
     setFile(f);
     setAnalysis(null); setFeedback(null); setSuggestions(null); setAnalysisId(null);
@@ -226,7 +233,7 @@ function Dashboard() {
                   <p className="text-xs text-muted-foreground mt-1">PDF or TXT · max 5MB</p>
                 </>
               )}
-              <input ref={inputRef} type="file" accept=".pdf,.txt" hidden onChange={(e) => validateAndSet(e.target.files?.[0] ?? null)} />
+              <input ref={inputRef} type="file" accept=".pdf,.txt,.docx" hidden onChange={(e) => validateAndSet(e.target.files?.[0] ?? null)} />
             </div>
           </div>
           <div className="space-y-3">

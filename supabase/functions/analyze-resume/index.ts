@@ -5,6 +5,85 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+// Indian city/state regex+keyword fallback. Runs ONLY if the AI returns an empty city.
+const INDIAN_CITIES: Record<string, string> = {
+  // city -> state (canonical)
+  "mumbai": "Maharashtra", "bombay": "Maharashtra", "pune": "Maharashtra", "nagpur": "Maharashtra",
+  "nashik": "Maharashtra", "thane": "Maharashtra", "navi mumbai": "Maharashtra", "aurangabad": "Maharashtra",
+  "delhi": "Delhi", "new delhi": "Delhi", "noida": "Uttar Pradesh", "ghaziabad": "Uttar Pradesh",
+  "lucknow": "Uttar Pradesh", "kanpur": "Uttar Pradesh", "varanasi": "Uttar Pradesh", "agra": "Uttar Pradesh",
+  "gurgaon": "Haryana", "gurugram": "Haryana", "faridabad": "Haryana",
+  "bengaluru": "Karnataka", "bangalore": "Karnataka", "mysuru": "Karnataka", "mysore": "Karnataka",
+  "mangalore": "Karnataka", "mangaluru": "Karnataka", "hubli": "Karnataka",
+  "chennai": "Tamil Nadu", "madras": "Tamil Nadu", "coimbatore": "Tamil Nadu", "madurai": "Tamil Nadu",
+  "tiruchirappalli": "Tamil Nadu", "trichy": "Tamil Nadu", "salem": "Tamil Nadu",
+  "hyderabad": "Telangana", "secunderabad": "Telangana", "warangal": "Telangana",
+  "vijayawada": "Andhra Pradesh", "visakhapatnam": "Andhra Pradesh", "vizag": "Andhra Pradesh", "guntur": "Andhra Pradesh",
+  "kolkata": "West Bengal", "calcutta": "West Bengal", "howrah": "West Bengal", "siliguri": "West Bengal",
+  "ahmedabad": "Gujarat", "surat": "Gujarat", "vadodara": "Gujarat", "baroda": "Gujarat", "rajkot": "Gujarat", "gandhinagar": "Gujarat",
+  "jaipur": "Rajasthan", "jodhpur": "Rajasthan", "udaipur": "Rajasthan", "kota": "Rajasthan",
+  "kochi": "Kerala", "cochin": "Kerala", "thiruvananthapuram": "Kerala", "trivandrum": "Kerala",
+  "kozhikode": "Kerala", "calicut": "Kerala",
+  "bhopal": "Madhya Pradesh", "indore": "Madhya Pradesh", "gwalior": "Madhya Pradesh", "jabalpur": "Madhya Pradesh",
+  "patna": "Bihar", "gaya": "Bihar",
+  "bhubaneswar": "Odisha", "cuttack": "Odisha",
+  "chandigarh": "Chandigarh", "mohali": "Punjab", "ludhiana": "Punjab", "amritsar": "Punjab", "jalandhar": "Punjab",
+  "dehradun": "Uttarakhand", "haridwar": "Uttarakhand",
+  "ranchi": "Jharkhand", "jamshedpur": "Jharkhand", "dhanbad": "Jharkhand",
+  "raipur": "Chhattisgarh", "bilaspur": "Chhattisgarh",
+  "guwahati": "Assam", "shillong": "Meghalaya", "imphal": "Manipur", "agartala": "Tripura",
+  "panaji": "Goa", "panjim": "Goa", "margao": "Goa",
+  "puducherry": "Puducherry", "pondicherry": "Puducherry",
+  "srinagar": "Jammu and Kashmir", "jammu": "Jammu and Kashmir",
+};
+const CITY_ALIASES: Record<string, string> = {
+  bombay: "Mumbai", bangalore: "Bengaluru", calcutta: "Kolkata", madras: "Chennai",
+  gurgaon: "Gurugram", "new delhi": "Delhi", "delhi ncr": "Delhi", ncr: "Delhi",
+  trivandrum: "Thiruvananthapuram", pondicherry: "Puducherry", cochin: "Kochi",
+  mysore: "Mysuru", calicut: "Kozhikode", baroda: "Vadodara", vizag: "Visakhapatnam",
+  trichy: "Tiruchirappalli", panjim: "Panaji", mangalore: "Mangaluru",
+};
+
+function fallbackExtractCity(rawText: string): { city: string; state: string } {
+  const text = (rawText || "").replace(/\s+/g, " ");
+  if (!text) return { city: "", state: "" };
+
+  const lower = text.toLowerCase();
+
+  // 1) Look near explicit keywords first: "Address", "Location", "Based in", "City", "Residing at", "Permanent Address"
+  const keywordRe = /(?:address|location|based in|city|residing at|residence|permanent address|current address|hometown)[:\-\s]+([^\n,;|]{2,80})/gi;
+  const candidates: string[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = keywordRe.exec(text)) !== null) candidates.push(m[1]);
+
+  // 2) Pattern "City, State" (Title-cased)
+  const cityStateRe = /\b([A-Z][a-zA-Z]+(?:\s[A-Z][a-zA-Z]+){0,2}),\s*([A-Z][a-zA-Z]+(?:\s[A-Z][a-zA-Z]+){0,2})\b/g;
+  while ((m = cityStateRe.exec(text)) !== null) candidates.push(`${m[1]}, ${m[2]}`);
+
+  // Try each candidate against our city dictionary
+  for (const cand of candidates) {
+    const c = cand.toLowerCase();
+    for (const cityKey of Object.keys(INDIAN_CITIES)) {
+      const re = new RegExp(`\\b${cityKey.replace(/\s+/g, "\\s+")}\\b`);
+      if (re.test(c)) {
+        const canonical = CITY_ALIASES[cityKey] || cityKey.replace(/\b\w/g, (l) => l.toUpperCase());
+        return { city: canonical, state: INDIAN_CITIES[cityKey] };
+      }
+    }
+  }
+
+  // 3) Whole-text scan as last resort
+  for (const cityKey of Object.keys(INDIAN_CITIES)) {
+    const re = new RegExp(`\\b${cityKey.replace(/\s+/g, "\\s+")}\\b`);
+    if (re.test(lower)) {
+      const canonical = CITY_ALIASES[cityKey] || cityKey.replace(/\b\w/g, (l) => l.toUpperCase());
+      return { city: canonical, state: INDIAN_CITIES[cityKey] };
+    }
+  }
+
+  return { city: "", state: "" };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -145,6 +224,18 @@ Analyze flexibly and submit structured data via the tool. Always return all requ
     // Attach low content metadata
     parsed.low_content = lowContent;
     parsed.word_count = wordCount;
+
+    // City fallback: if AI failed to detect a city, try regex + keyword + dictionary scan
+    if (!parsed.city || !String(parsed.city).trim()) {
+      const fb = fallbackExtractCity(text || "");
+      if (fb.city) {
+        parsed.city = fb.city;
+        if (!parsed.state || !String(parsed.state).trim()) parsed.state = fb.state;
+        parsed.city_source = "fallback";
+      }
+    } else {
+      parsed.city_source = "ai";
+    }
 
     // Gender preference small nudge
     if (genderPreference && genderPreference !== "none" && parsed.detected_gender === genderPreference) {
