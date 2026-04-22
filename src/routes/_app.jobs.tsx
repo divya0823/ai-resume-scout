@@ -16,7 +16,7 @@ export const Route = createFileRoute("/_app/jobs")({
   component: JobsPage,
 });
 
-interface Job { id: string; title: string; description: string; required_skills: string[]; level: string; }
+interface Job { id: string; title: string; description: string; required_skills: string[]; level: string; preferred_location: string | null; }
 
 function JobsPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -24,6 +24,7 @@ function JobsPage() {
   const [desc, setDesc] = useState("");
   const [skills, setSkills] = useState("");
   const [level, setLevel] = useState("mid");
+  const [preferredLocation, setPreferredLocation] = useState("");
 
   const load = async () => {
     const { data } = await supabase.from("job_profiles").select("*").order("created_at", { ascending: false });
@@ -37,9 +38,10 @@ function JobsPage() {
     const skillArr = skills.split(",").map((s) => s.trim()).filter(Boolean);
     const { error } = await supabase.from("job_profiles").insert({
       user_id: user.id, title, description: desc, required_skills: skillArr, level,
+      preferred_location: preferredLocation.trim() || null,
     });
     if (error) { toast.error(error.message); return; }
-    setTitle(""); setDesc(""); setSkills(""); setLevel("mid");
+    setTitle(""); setDesc(""); setSkills(""); setLevel("mid"); setPreferredLocation("");
     toast.success("Job profile added");
     load();
   };
@@ -81,6 +83,10 @@ function JobsPage() {
             <Input value={skills} onChange={(e) => setSkills(e.target.value)} placeholder="React, TypeScript, Tailwind" />
           </div>
           <div className="md:col-span-2">
+            <Label>Preferred location (Indian city, optional)</Label>
+            <Input value={preferredLocation} onChange={(e) => setPreferredLocation(e.target.value)} placeholder="e.g. Pune, Mumbai, Bengaluru" />
+          </div>
+          <div className="md:col-span-2">
             <Label>Description</Label>
             <Textarea rows={4} value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="What the role involves, responsibilities, must-haves…" />
           </div>
@@ -101,6 +107,9 @@ function JobsPage() {
               </Button>
             </div>
             <Badge variant="outline" className="mb-2 capitalize">{j.level}</Badge>
+            {j.preferred_location && (
+              <Badge variant="outline" className="mb-2 ml-2 border-primary/40 text-primary">📍 {j.preferred_location}</Badge>
+            )}
             <p className="text-sm text-muted-foreground line-clamp-3">{j.description}</p>
             <div className="flex flex-wrap gap-1 mt-3">
               {j.required_skills.map((s, i) => <Badge key={i} variant="secondary" className="text-[10px]">{s}</Badge>)}
