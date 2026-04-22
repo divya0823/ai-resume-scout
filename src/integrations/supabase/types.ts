@@ -17,6 +17,7 @@ export type Database = {
       analyses: {
         Row: {
           ats_score: number
+          city: string | null
           created_at: string
           education_score: number
           experience_score: number
@@ -34,11 +35,13 @@ export type Database = {
           project_score: number
           raw_text: string | null
           skill_score: number
+          state: string | null
           user_id: string
           word_count: number
         }
         Insert: {
           ats_score?: number
+          city?: string | null
           created_at?: string
           education_score?: number
           experience_score?: number
@@ -56,11 +59,13 @@ export type Database = {
           project_score?: number
           raw_text?: string | null
           skill_score?: number
+          state?: string | null
           user_id: string
           word_count?: number
         }
         Update: {
           ats_score?: number
+          city?: string | null
           created_at?: string
           education_score?: number
           experience_score?: number
@@ -78,6 +83,7 @@ export type Database = {
           project_score?: number
           raw_text?: string | null
           skill_score?: number
+          state?: string | null
           user_id?: string
           word_count?: number
         }
@@ -97,6 +103,7 @@ export type Database = {
           description: string
           id: string
           level: string
+          preferred_location: string | null
           required_skills: string[]
           title: string
           user_id: string
@@ -106,6 +113,7 @@ export type Database = {
           description: string
           id?: string
           level?: string
+          preferred_location?: string | null
           required_skills?: string[]
           title: string
           user_id: string
@@ -115,6 +123,7 @@ export type Database = {
           description?: string
           id?: string
           level?: string
+          preferred_location?: string | null
           required_skills?: string[]
           title?: string
           user_id?: string
