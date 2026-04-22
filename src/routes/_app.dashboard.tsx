@@ -233,7 +233,7 @@ function Dashboard() {
                   <p className="text-xs text-muted-foreground mt-1">PDF or TXT · max 5MB</p>
                 </>
               )}
-              <input ref={inputRef} type="file" accept=".pdf,.txt" hidden onChange={(e) => validateAndSet(e.target.files?.[0] ?? null)} />
+              <input ref={inputRef} type="file" accept=".pdf,.txt,.docx" hidden onChange={(e) => validateAndSet(e.target.files?.[0] ?? null)} />
             </div>
           </div>
           <div className="space-y-3">
