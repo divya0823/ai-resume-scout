@@ -227,6 +227,8 @@ Analyze flexibly and submit structured data via the tool. Always return all requ
     if (!toolCall) throw new Error("No structured response");
     const parsed = JSON.parse(toolCall.function.arguments);
 
+    console.log("AI RETURNED city:", JSON.stringify(parsed.city), "state:", JSON.stringify(parsed.state));
+
     // Attach low content metadata
     parsed.low_content = lowContent;
     parsed.word_count = wordCount;
@@ -234,6 +236,7 @@ Analyze flexibly and submit structured data via the tool. Always return all requ
     // City fallback: if AI failed to detect a city, try regex + keyword + dictionary scan
     if (!parsed.city || !String(parsed.city).trim()) {
       const fb = fallbackExtractCity(text || "");
+      console.log("FALLBACK CITY EXTRACTION:", JSON.stringify(fb));
       if (fb.city) {
         parsed.city = fb.city;
         if (!parsed.state || !String(parsed.state).trim()) parsed.state = fb.state;
@@ -242,6 +245,9 @@ Analyze flexibly and submit structured data via the tool. Always return all requ
     } else {
       parsed.city_source = "ai";
     }
+
+    console.log("FINAL city:", parsed.city, "| source:", parsed.city_source);
+    console.log("=== END DEBUG ===");
 
     // Gender preference small nudge
     if (genderPreference && genderPreference !== "none" && parsed.detected_gender === genderPreference) {
