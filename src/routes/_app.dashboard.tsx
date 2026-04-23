@@ -347,7 +347,19 @@ function Dashboard() {
                   <Badge variant="outline" className={analysis.city ? "border-primary/40 text-primary" : "border-muted-foreground/30 text-muted-foreground"}>
                     <MapPin className="h-3 w-3 mr-1" />
                     {analysis.city ? `${analysis.city}${analysis.state ? `, ${analysis.state}` : ""}` : "City not detected"}
+                    {analysis.city && analysis.city_source && (
+                      <span className="ml-1 opacity-60 text-[10px]">({analysis.city_source})</span>
+                    )}
                   </Badge>
+                  {!analysis.city && (
+                    <button
+                      type="button"
+                      onClick={() => setPreviewOpen(true)}
+                      className="text-[11px] text-primary hover:underline"
+                    >
+                      Why? View extracted text →
+                    </button>
+                  )}
                   {analysis.location_match === true && (
                     <Badge className="bg-success text-success-foreground">📍 Location match</Badge>
                   )}
