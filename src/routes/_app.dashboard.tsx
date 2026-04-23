@@ -82,6 +82,8 @@ function Dashboard() {
       setRawText(text);
 
       const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
+      console.log("[ResumeIQ] EXTRACTED TEXT word count:", wordCount);
+      console.log("[ResumeIQ] EXTRACTED TEXT (first 800 chars):\n", text.slice(0, 800));
       // Flexible threshold: only block truly empty / unreadable files
       if (wordCount < MIN_WORDS) {
         if (wordCount < 10) throw new Error("Couldn't read enough text from the file. Make sure the PDF contains selectable text (not a scanned image).");
@@ -96,6 +98,7 @@ function Dashboard() {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       const a = data.analysis;
+      console.log("[ResumeIQ] AI ANALYSIS — city:", a.city, "| state:", a.state, "| source:", a.city_source);
       setAnalysis(a);
 
       const { data: saved, error: insErr } = await supabase.from("analyses").insert({
@@ -344,7 +347,19 @@ function Dashboard() {
                   <Badge variant="outline" className={analysis.city ? "border-primary/40 text-primary" : "border-muted-foreground/30 text-muted-foreground"}>
                     <MapPin className="h-3 w-3 mr-1" />
                     {analysis.city ? `${analysis.city}${analysis.state ? `, ${analysis.state}` : ""}` : "City not detected"}
+                    {analysis.city && analysis.city_source && (
+                      <span className="ml-1 opacity-60 text-[10px]">({analysis.city_source})</span>
+                    )}
                   </Badge>
+                  {!analysis.city && (
+                    <button
+                      type="button"
+                      onClick={() => setPreviewOpen(true)}
+                      className="text-[11px] text-primary hover:underline"
+                    >
+                      Why? View extracted text →
+                    </button>
+                  )}
                   {analysis.location_match === true && (
                     <Badge className="bg-success text-success-foreground">📍 Location match</Badge>
                   )}

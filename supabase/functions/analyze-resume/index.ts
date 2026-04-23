@@ -96,6 +96,12 @@ Deno.serve(async (req) => {
     const wordCount = trimmed.trim().split(/\s+/).filter(Boolean).length;
     const lowContent = wordCount < 150;
 
+    // DEBUG: log first 500 chars of extracted text so we can see exactly what the AI receives
+    console.log("=== ANALYZE-RESUME DEBUG ===");
+    console.log("WORD COUNT:", wordCount);
+    console.log("EXTRACTED TEXT (first 500):", trimmed.slice(0, 500));
+    console.log("EXTRACTED TEXT (last 300):", trimmed.slice(-300));
+
     const systemPrompt = `You are an expert ATS (Applicant Tracking System) and resume analyzer.
 Extract ALL inferable information from the resume — even short ones. Be FLEXIBLE: if a section is unlabeled, infer it from context (e.g., a list of technologies = skills, a project description = projects).
 NEVER refuse to analyze a short resume. If content is sparse, still produce best-effort scores and mark fields as empty arrays only when truly absent.
@@ -221,6 +227,8 @@ Analyze flexibly and submit structured data via the tool. Always return all requ
     if (!toolCall) throw new Error("No structured response");
     const parsed = JSON.parse(toolCall.function.arguments);
 
+    console.log("AI RETURNED city:", JSON.stringify(parsed.city), "state:", JSON.stringify(parsed.state));
+
     // Attach low content metadata
     parsed.low_content = lowContent;
     parsed.word_count = wordCount;
@@ -228,6 +236,7 @@ Analyze flexibly and submit structured data via the tool. Always return all requ
     // City fallback: if AI failed to detect a city, try regex + keyword + dictionary scan
     if (!parsed.city || !String(parsed.city).trim()) {
       const fb = fallbackExtractCity(text || "");
+      console.log("FALLBACK CITY EXTRACTION:", JSON.stringify(fb));
       if (fb.city) {
         parsed.city = fb.city;
         if (!parsed.state || !String(parsed.state).trim()) parsed.state = fb.state;
@@ -236,6 +245,9 @@ Analyze flexibly and submit structured data via the tool. Always return all requ
     } else {
       parsed.city_source = "ai";
     }
+
+    console.log("FINAL city:", parsed.city, "| source:", parsed.city_source);
+    console.log("=== END DEBUG ===");
 
     // Gender preference small nudge
     if (genderPreference && genderPreference !== "none" && parsed.detected_gender === genderPreference) {
